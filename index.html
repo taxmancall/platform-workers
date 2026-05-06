@@ -249,7 +249,7 @@
         <div class="gc info"><div class="gl">고용보험</div><div class="gv">고용보험법 제77조의6</div><div class="gsb">2022년 1월부터 단계적 적용 확대</div></div>
         <div class="gc info"><div class="gl">산재보험</div><div class="gv">산재보험법 제125조</div><div class="gsb">2008년부터 특수형태근로종사자 적용</div></div>
         <div class="gc"><div class="gl">신고 의무자</div><div class="gv">노무를 제공받는 사업주</div><div class="gsb">근로복지공단에 취득·상실·월보수 신고</div></div>
-        <div class="gc"><div class="gl">보험료 부담</div><div class="gv">사업주 50% + 본인 50%</div><div class="gsb">산재보험은 전액 사업주 부담</div></div>
+        <div class="gc"><div class="gl">보험료 부담</div><div class="gv">사업주 50% + 본인 50%</div><div class="gsb">고용·산재 모두 반반<br>(일반 근로자와 다름)</div></div>
       </div>
     </div>
     <div class="gs">
@@ -656,8 +656,12 @@
                 <div class="num" id="r-emp-per" style="font-size:16px">-</div>
               </div>
               <div class="sum-card">
-                <div class="lbl">산재보험료 (회사 전액)</div>
+                <div class="lbl">산재보험료 (회사분 50%)</div>
                 <div class="num" id="r-iac" style="font-size:16px">-</div>
+              </div>
+              <div class="sum-card">
+                <div class="lbl">산재보험료 (본인분 50%)</div>
+                <div class="num" id="r-iac-per" style="font-size:16px">-</div>
               </div>
               <div class="sum-card success" style="background:var(--green-light);border-color:#BBF7D0">
                 <div class="lbl" style="color:var(--green)">실 지급액</div>
@@ -670,7 +674,7 @@
           <div style="background:var(--gray-50);border-radius:var(--radius);padding:14px 16px;font-size:12px;line-height:2;font-family:'JetBrains Mono',monospace;color:var(--gray-700)" id="r-detail"></div>
 
           <div class="gnotice" style="margin-top:12px;font-size:12px">
-            경비율은 고용노동부 고시 기준 (25.7.1~26.6.30) | 산재보험료율은 직종별 고시 요율 | 실 지급액 = 공급가액 - 대상자분 고용보험료 (산재는 전액 회사 부담)
+            경비율은 고용노동부 고시 기준 (25.7.1~26.6.30) | 산재보험료율은 직종별 고시 요율 | 실 지급액 = 공급가액 - 본인부담 고용보험료 - 본인부담 산재보험료
           </div>
         </div>
 
@@ -737,12 +741,13 @@ function calcUpdate(){
   const empPremCo  = isGolf ? 0 : Math.round(monthlyPay * 0.008);
   const empPremPer = isGolf ? 0 : Math.round(monthlyPay * 0.008);
 
-  // 산재보험료 (전액 회사 부담)
-  const iacPrem = Math.round(monthlyPayIac * iacPremRate);
+  // 산재보험료 (사업주 50% + 본인 50%)
+  const iacPremTotal = Math.round(monthlyPayIac * iacPremRate);
+  const iacPrem    = Math.round(iacPremTotal / 2); // 회사분
+  const iacPremPer = iacPremTotal - iacPrem;        // 본인분
 
-  // 실지급액 = 공급가액 - 대상자분 고용보험료
-  // (부가세는 별도, 산재는 회사 부담이므로 제외)
-  const netPay = Math.round(amount - empPremPer);
+  // 실지급액 = 공급가액 - 본인부담 고용보험료 - 본인부담 산재보험료
+  const netPay = Math.round(amount - empPremPer - iacPremPer);
 
   // 결과 표시
   const fmt = v => v.toLocaleString() + '원';
@@ -750,6 +755,7 @@ function calcUpdate(){
   document.getElementById('r-emp-co').textContent = isGolf ? '미적용' : fmt(empPremCo);
   document.getElementById('r-emp-per').textContent = isGolf ? '미적용' : fmt(empPremPer);
   document.getElementById('r-iac').textContent = fmt(iacPrem);
+  document.getElementById('r-iac-per').textContent = fmt(iacPremPer);
   document.getElementById('r-net').textContent = fmt(netPay);
 
   const empExpPct = (empExpRate * 100).toFixed(1);
@@ -766,9 +772,13 @@ function calcUpdate(){
     `  월보수액 × 0.8% (본인) = ${fmt(empPremPer)}\n`) +
     `\n[산재보험료]\n` +
     `  산재 경비율 공제액    ${fmt(monthlyPayIac)}\n` +
-    `  × ${iacPremPct}% (전액 회사 부담) = ${fmt(iacPrem)}\n` +
+    `  × ${iacPremPct}% = 합계 ${fmt(iacPremTotal)} (사업주·본인 각 50%)\n` +
+    `  회사분 ${fmt(iacPrem)} / 본인분 ${fmt(iacPremPer)}\n` +
     `\n[실 지급액]\n` +
-    `  공급가액 ${fmt(amount)} - 본인 고용보험료 ${isGolf ? '0원' : fmt(empPremPer)} = ${fmt(netPay)}`;
+    `  공급가액 ${fmt(amount)}\n` +
+    `  - 본인 고용보험료 ${isGolf ? '0원' : fmt(empPremPer)}\n` +
+    `  - 본인 산재보험료 ${fmt(iacPremPer)}\n` +
+    `  = ${fmt(netPay)}`;
 
   document.getElementById('calc-result').style.display = 'block';
   document.getElementById('calc-empty').style.display = 'none';
