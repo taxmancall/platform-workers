@@ -220,7 +220,7 @@
     <div class="notice" id="notice"><strong>안내:</strong> 보험구분 1(산재만)은 자격취득일 불필요 | 보험구분 3(고용만)은 직종부호 불필요 | 월보수액은 쉼표 없이 저장됩니다</div>
 
     <div class="table-wrap" id="table-wrap">
-      <div class="table-header"><h2 id="table-title">미리보기</h2></div>
+      <div class="table-header"><h2 id="table-title">미리보기</h2><span style="font-size:12px;color:var(--gray-500)">직종부호는 행별로 개별 변경 가능</span></div>
       <div class="table-scroll">
         <table>
           <thead><tr><th>#</th><th>보험구분</th><th>성명</th><th>주민(외국인)등록번호</th><th>직종부호</th><th>자격취득일</th><th style="text-align:right">월 보수액</th><th>상태</th></tr></thead>
@@ -807,11 +807,31 @@ function nDate(v){
 }
 function fHdr(raw){for(let i=0;i<Math.min(raw.length,12);i++){const r=(raw[i]||[]).map(c=>c?String(c):'');if(r.some(c=>c.includes('성명'))&&r.some(c=>c.includes('주민')))return i}return -1}
 function fCol(h,kws){for(const k of kws){const i=h.findIndex(x=>x&&String(x).includes(k));if(i>=0)return i}return -1}
+const JOB_OPTIONS = [
+  {v:'944',l:'944 – 택배기사'},
+  {v:'982',l:'982 – 퀵서비스(이륜)'},
+  {v:'983',l:'983 – 퀵서비스(자가용)'},
+  {v:'984',l:'984 – 퀵서비스(도보·자전거)'},
+  {v:'941',l:'941 – 보험설계사(생명)'},
+  {v:'942',l:'942 – 보험설계사(기타)'},
+  {v:'943',l:'943 – 학습지방문강사'},
+  {v:'964',l:'964 – 유통배송기사'},
+  {v:'958',l:'958 – 대리운전기사'},
+  {v:'961',l:'961 – 화물차주'},
+  {v:'960',l:'960 – SW기술자'},
+  {v:'959',l:'959 – 골프장캐디(산재만)'},
+  {v:'965',l:'965 – 플랫폼배달종사자'},
+  {v:'968',l:'968 – 어린이통학버스기사'},
+];
+function jobSelectHTML(idx, selected){
+  return `<select onchange="parsedRows[${idx}].job=this.value" style="font-size:11px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;background:var(--white);color:var(--gray-900);max-width:160px">${JOB_OPTIONS.map(o=>`<option value="${o.v}"${o.v===selected?' selected':''}>${o.l}</option>`).join('')}</select>`;
+}
 function parseRows(raw){
   const hi=fHdr(raw);
   if(hi<0){alert('헤더 행을 찾을 수 없습니다.');return}
   const h=(raw[hi]||[]).map(c=>c?String(c):'');
   const iN=fCol(h,['성명']),iJ=fCol(h,['주민']),iD=fCol(h,['취득일','자격']),iP=fCol(h,['월보수액','보수액','신고액','보수월액','월보수']);
+  const iJob=fCol(h,['직종','직종부호','job']);
   if(iN<0||iJ<0||iP<0){alert(`필수 컬럼 미발견\n성명:${iN>=0?'✓':'✗'} 주민:${iJ>=0?'✓':'✗'} 보수:${iP>=0?'✓':'✗'}\n헤더: ${h.filter(Boolean).join(', ')}`);return}
   parsedRows=[];
   for(let i=hi+1;i<raw.length;i++){
@@ -822,10 +842,16 @@ function parseRows(raw){
     const pay=Math.round(parseFloat(String(pr).replace(/,/g,'')));
     if(isNaN(pay)||pay<=0)continue;
     const jumin=nJumin(row[iJ]),acq=iD>=0?nDate(row[iD]):'';
+    // 파일에 직종 컬럼 있으면 자동 감지, 없으면 드롭다운 기본값
+    let job = document.getElementById('sel-job').value;
+    if(iJob>=0 && row[iJob]){
+      const rawJob = String(row[iJob]).trim().replace(/[^0-9]/g,'');
+      if(JOB_OPTIONS.find(o=>o.v===rawJob)) job = rawJob;
+    }
     const warns=[];
     if(!jumin||jumin.length!==13)warns.push('주민번호 자리수 오류');
     else if(/^[0-9]{6}0{7}$/.test(jumin))warns.push('주민번호 뒷자리 미기재');
-    parsedRows.push({name,jumin,acq,pay,warns});
+    parsedRows.push({name,jumin,acq,pay,job,warns});
   }
   if(parsedRows.length===0){alert('변환 가능한 데이터가 없습니다.');return}
   document.getElementById('drop-zone').style.display='none';
@@ -833,7 +859,7 @@ function parseRows(raw){
   renderPreview();
 }
 function renderPreview(){
-  const ins=document.getElementById('sel-insurance').value,job=document.getElementById('sel-job').value;
+  const ins=document.getElementById('sel-insurance').value;
   const total=parsedRows.length,warnRows=parsedRows.filter(r=>r.warns.length>0),totalPay=parsedRows.reduce((s,r)=>s+r.pay,0);
   document.getElementById('cards').style.display='grid';
   document.getElementById('c-total').textContent=total;
@@ -847,14 +873,14 @@ function renderPreview(){
   document.getElementById('preview-body').innerHTML=parsedRows.map((r,i)=>{
     const sb=r.warns.length>0?`<span class="badge badge-amber">${r.warns[0]}</span>`:'<span class="badge badge-green">정상</span>';
     const jd=r.jumin.length===13?`${r.jumin.slice(0,6)}-${r.jumin.slice(6)}`:r.jumin;
-    return `<tr><td style="color:var(--gray-500)">${i+1}</td><td><span class="badge badge-blue">${ins}</span></td><td style="font-weight:500">${r.name}</td><td class="mono">${jd}</td><td><span class="badge badge-blue">${job}</span></td><td class="mono">${r.acq||'–'}</td><td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px">${r.pay.toLocaleString()}</td><td>${sb}</td></tr>`;
+    return `<tr><td style="color:var(--gray-500)">${i+1}</td><td><span class="badge badge-blue">${ins}</span></td><td style="font-weight:500;white-space:nowrap">${r.name}</td><td class="mono">${jd}</td><td>${jobSelectHTML(i,r.job)}</td><td class="mono">${r.acq||'–'}</td><td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px">${r.pay.toLocaleString()}</td><td>${sb}</td></tr>`;
   }).join('');
   document.getElementById('table-wrap').style.display='block';
   document.getElementById('actions').style.display='flex';
 }
 function downloadOutput(){
-  const ins=document.getElementById('sel-insurance').value,job=document.getElementById('sel-job').value,month=document.getElementById('sel-month').value.replace('-','');
-  const aoa=[['고용∙산재보험 노무제공자 월보수액신고 전자신고용'],['보험구분','성명','주민(외국인)등록번호','직종부호','자격취득일','월 보수액'],...parsedRows.map(r=>[Number(ins),r.name,r.jumin,Number(job),r.acq||null,r.pay])];
+  const ins=document.getElementById('sel-insurance').value,month=document.getElementById('sel-month').value.replace('-','');
+  const aoa=[['고용∙산재보험 노무제공자 월보수액신고 전자신고용'],['보험구분','성명','주민(외국인)등록번호','직종부호','자격취득일','월 보수액'],...parsedRows.map(r=>[Number(ins),r.name,r.jumin,Number(r.job),r.acq||null,r.pay])];
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:10},{wch:12},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws,'서식');
