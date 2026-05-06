@@ -184,8 +184,9 @@
           </select>
         </div>
         <div class="field">
-          <label>직종부호</label>
-          <select id="sel-job" onchange="renderPreview()">
+          <label>직종부호 (전체 일괄 변경)</label>
+          <select id="sel-job" onchange="applyJobAll(this.value)">
+            <option value="">— 행별 개별 선택 —</option>
             <option value="944">944 – 택배기사</option>
             <option value="982">982 – 퀵서비스(이륜)</option>
             <option value="983">983 – 퀵서비스(자가용)</option>
@@ -195,8 +196,11 @@
             <option value="943">943 – 학습지방문강사</option>
             <option value="964">964 – 유통배송기사</option>
             <option value="958">958 – 대리운전기사</option>
-            <option value="961">961 – 화물차주(택배 지선·간선)</option>
-            <option value="959">959 – 골프장캐디 (산재만)</option>
+            <option value="961">961 – 화물차주</option>
+            <option value="960">960 – SW기술자</option>
+            <option value="959">959 – 골프장캐디(산재만)</option>
+            <option value="965">965 – 플랫폼배달종사자</option>
+            <option value="968">968 – 어린이통학버스기사</option>
           </select>
         </div>
         <div class="field">
